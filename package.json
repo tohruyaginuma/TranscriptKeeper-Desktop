@@ -1,18 +1,23 @@
 {
-  "name": "transcript_keeper",
+  "name": "my-app",
+  "productName": "my-app",
   "version": "1.0.0",
-  "description": "this is transcript keeper for desktop application.",
-  "main": "dist/main.js",
+  "description": "My Electron application description",
+  "main": ".vite/build/main.js",
+  "private": true,
   "scripts": {
-    "build": "tsc",
-    "dev": "npm run build && electron .",
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "publish": "electron-forge publish"
+    "publish": "electron-forge publish",
+    "lint": "eslint --ext .ts,.tsx ."
   },
-  "author": "Tohru Yaginuma",
-  "license": "ISC",
+  "keywords": [],
+  "author": {
+    "name": "Tohru Yaginuma",
+    "email": "toru45s@gmail.com"
+  },
+  "license": "MIT",
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
     "@electron-forge/maker-deb": "^7.11.1",
@@ -21,11 +26,16 @@
     "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
-    "@electron-forge/publisher-github": "^7.11.1",
+    "@electron-forge/plugin-vite": "^7.11.1",
     "@electron/fuses": "^1.8.0",
-    "@types/node": "^25.0.10",
-    "electron": "^40.0.0",
-    "typescript": "^5.9.3"
+    "@types/electron-squirrel-startup": "^1.0.2",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "electron": "40.2.1",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.32.0",
+    "typescript": "~4.5.4",
+    "vite": "^5.4.21"
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1"

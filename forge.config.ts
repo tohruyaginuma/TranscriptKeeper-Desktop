@@ -1,34 +1,47 @@
-const { FusesPlugin } = require('@electron-forge/plugin-fuses');
-const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+import type { ForgeConfig } from '@electron-forge/shared-types';
+import { MakerSquirrel } from '@electron-forge/maker-squirrel';
+import { MakerZIP } from '@electron-forge/maker-zip';
+import { MakerDeb } from '@electron-forge/maker-deb';
+import { MakerRpm } from '@electron-forge/maker-rpm';
+import { VitePlugin } from '@electron-forge/plugin-vite';
+import { FusesPlugin } from '@electron-forge/plugin-fuses';
+import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-module.exports = {
+const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
   },
   rebuildConfig: {},
   makers: [
-    {
-      name: '@electron-forge/maker-squirrel',
-      config: {},
-    },
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
-    },
-    {
-      name: '@electron-forge/maker-deb',
-      config: {},
-    },
-    {
-      name: '@electron-forge/maker-rpm',
-      config: {},
-    },
+    new MakerSquirrel({}),
+    new MakerZIP({}, ['darwin']),
+    new MakerRpm({}),
+    new MakerDeb({}),
   ],
   plugins: [
-    {
-      name: '@electron-forge/plugin-auto-unpack-natives',
-      config: {},
-    },
+    new VitePlugin({
+      // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
+      // If you are familiar with Vite configuration, it will look really familiar.
+      build: [
+        {
+          // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
+          entry: 'src/main.ts',
+          config: 'vite.main.config.ts',
+          target: 'main',
+        },
+        {
+          entry: 'src/preload.ts',
+          config: 'vite.preload.config.ts',
+          target: 'preload',
+        },
+      ],
+      renderer: [
+        {
+          name: 'main_window',
+          config: 'vite.renderer.config.ts',
+        },
+      ],
+    }),
     // Fuses are used to enable/disable various Electron functionality
     // at package time, before code signing the application
     new FusesPlugin({
@@ -41,17 +54,6 @@ module.exports = {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
   ],
-  publishers: [
-    {
-      name: '@electron-forge/publisher-github',
-      config: {
-        repository: {
-          owner: 'tohruyaginuma',
-          name: 'TranscriptKeeper-Desktop'
-        },
-        prerelease: false,
-        draft: true
-      }
-    }
-  ]
 };
+
+export default config;
