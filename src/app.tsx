@@ -36,8 +36,13 @@ const App = () => {
             <Text bold>Hoge HogeHoge</Text>
             <Text>Hoge@hoge.com</Text>
           </Flex>
-          <Button variant="outline" size="icon" aria-label="Submit">
-            <LogOut onClick={handleLogout} />
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Submit"
+            onClick={handleLogout}
+          >
+            <LogOut />
           </Button>
         </Flex>
       </Flex>

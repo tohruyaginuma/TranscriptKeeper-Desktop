@@ -14,6 +14,7 @@ const useApp = () => {
 
   const handleLogout = () => {
     console.log("logout");
+    console.log(window.recorderAPI.ping()); // "pong"
   };
 
   useEffect(() => {
@@ -27,7 +28,7 @@ const useApp = () => {
     elapsed,
     handleRecord,
     handleStop,
-    handleLogout
+    handleLogout,
   };
 };
 
