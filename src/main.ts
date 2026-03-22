@@ -1,7 +1,15 @@
-import { app, BrowserWindow, session, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, session, ipcMain, dialog, desktopCapturer } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import fs from "fs/promises";
+import { initMain } from 'electron-audio-loopback'
+import os from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+initMain()
+const execFileAsync = promisify(execFile)
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -33,31 +41,79 @@ const createWindow = () => {
 };
 
 const recordVoiceHandle = () => {
-  session.defaultSession.setDisplayMediaRequestHandler(null)
+  session.defaultSession.setDisplayMediaRequestHandler(
+    async (request, callback) => {
+      const sources = await desktopCapturer.getSources({ types: ['screen'] })
+  
+      callback({
+        video: sources[0],
+        audio: 'loopback',
+      })
+    },
+  )
+
   ipcMain.handle(
     'audio:save',
     async (_event, args: { arrayBuffer: ArrayBuffer; defaultFileName: string }) => {
       const { arrayBuffer, defaultFileName } = args
 
-      const result = await dialog.showSaveDialog({
-        title: 'Save recording',
-        defaultPath: defaultFileName,
-        filters: [
-          { name: 'WebM Audio', extensions: ['webm'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-      })
+      // const result = await dialog.showSaveDialog({
+      //   title: 'Save recording',
+      //   defaultPath: defaultFileName,
+      //   filters: [
+      //     { name: 'WebM Audio', extensions: ['webm'] },
+      //     { name: 'All Files', extensions: ['*'] },
+      //   ],
+      // })
 
-      if (result.canceled || !result.filePath) {
-        return { canceled: true as const }
-      }
+      // if (result.canceled || !result.filePath) {
+      //   return { canceled: true as const }
+      // }
 
-      const buffer = Buffer.from(arrayBuffer)
-      await fs.writeFile(result.filePath, buffer)
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tk-audio-'))
+      const wavPath = path.join(tempDir, 'recording.wav')
+      const flacPath = path.join(tempDir, 'recording.flac')
 
-      return {
-        canceled: false as const,
-        filePath: result.filePath,
+      // const buffer = Buffer.from(arrayBuffer)
+      // await fs.writeFile(result.filePath, buffer)
+
+      try {
+        const wavBuffer = Buffer.from(arrayBuffer)
+        await fs.writeFile(wavPath, wavBuffer)
+        await fs.writeFile(flacPath, wavBuffer)
+
+        await execFileAsync('afconvert', [
+          wavPath,
+          '-f',
+          'flac',
+          '-d',
+          'flac',
+          '-o',
+          flacPath,
+        ])
+
+        const result = await dialog.showSaveDialog({
+          title: 'Save recording',
+          defaultPath: defaultFileName,
+          filters: [
+            { name: 'FLAC Audio', extensions: ['flac'] },
+            { name: 'All Files', extensions: ['*'] },
+          ],
+        })
+
+        if (result.canceled || !result.filePath) {
+          return { canceled: true as const }
+        }
+
+        const flacBuffer = await fs.readFile(flacPath)
+        await fs.writeFile(result.filePath, flacBuffer)
+
+        return {
+          canceled: false as const,
+          filePath: result.filePath,
+        }
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true })
       }
     }
   )
@@ -77,7 +133,8 @@ const recordVoiceHandle = () => {
       const fileName = path.basename(filePath)
 
       const formData = new FormData()
-      const blob = new Blob([new Uint8Array(fileBuffer)], { type: 'audio/webm' })
+      const mimeType = fileName.toLowerCase().endsWith('.flac') ? 'audio/flac' : 'application/octet-stream'
+      const blob = new Blob([new Uint8Array(fileBuffer)], { type: mimeType })
       formData.append('file', blob, fileName)
 
       const response = await fetch(uploadUrl, {
@@ -103,22 +160,25 @@ const recordVoiceHandle = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on("ready", createWindow);
-app.whenReady().then(recordVoiceHandle)
+
+app.whenReady().then(() => {
+  recordVoiceHandle()
+  createWindow()
+
+  app.on("activate", () => {
+    // On OS X it's common to re-create a window in the app when the
+    // dock icon is clicked and there are no other windows open.
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+})
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
-  }
-});
-
-app.on("activate", () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
   }
 });
 

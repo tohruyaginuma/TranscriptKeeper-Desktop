@@ -1,4 +1,7 @@
 export {};
+type SaveAudioResult =
+  | { canceled: true }
+  | { canceled: false; filePath: string }
 
 declare global {
   interface Window {
@@ -6,10 +9,7 @@ declare global {
       saveAudioFile: (
         arrayBuffer: ArrayBuffer,
         defaultFileName: string
-      ) => Promise<
-        | { canceled: true }
-        | { canceled: false; filePath: string }
-      >
+      ) => Promise<SaveAudioResult>
       uploadAudioFile: (
         filePath: string,
         uploadUrl: string

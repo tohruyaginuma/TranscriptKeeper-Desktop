@@ -4,6 +4,87 @@ import { createRecorder, type RecorderSession } from '../lib/recorder'
 import { saveBlobLocally } from '@/lib/file'
 import { Status } from '@/types/types'
 
+type CaptureResources = {
+  micStream: MediaStream
+  screenStream: MediaStream
+  audioContext: AudioContext
+  nodes: AudioNode[]
+}
+
+function cleanupCapture(resources: CaptureResources | null) {
+  if (!resources) {
+    return
+  }
+
+  resources.nodes.forEach((node) => {
+    try {
+      node.disconnect()
+    } catch {
+      // no-op
+    }
+  })
+
+  resources.micStream.getTracks().forEach((track) => track.stop())
+  resources.screenStream.getTracks().forEach((track) => track.stop())
+
+  if (resources.audioContext.state !== 'closed') {
+    void resources.audioContext.close()
+  }
+}
+
+function mergeChunks(chunks: Float32Array[]) {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const merged = new Float32Array(totalLength)
+
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.length
+  }
+
+  return merged
+}
+
+function writeAscii(view: DataView, offset: number, value: string) {
+  for (let i = 0; i < value.length; i += 1) {
+    view.setUint8(offset + i, value.charCodeAt(i))
+  }
+}
+
+function encodeWav(samples: Float32Array, sampleRate: number) {
+  const bytesPerSample = 2
+  const blockAlign = bytesPerSample
+  const byteRate = sampleRate * blockAlign
+  const dataSize = samples.length * bytesPerSample
+  const buffer = new ArrayBuffer(44 + dataSize)
+  const view = new DataView(buffer)
+
+  writeAscii(view, 0, 'RIFF')
+  view.setUint32(4, 36 + dataSize, true)
+  writeAscii(view, 8, 'WAVE')
+  writeAscii(view, 12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, byteRate, true)
+  view.setUint16(32, blockAlign, true)
+  view.setUint16(34, 16, true)
+  writeAscii(view, 36, 'data')
+  view.setUint32(40, dataSize, true)
+
+  let offset = 44
+  for (let i = 0; i < samples.length; i += 1) {
+    const sample = Math.max(-1, Math.min(1, samples[i]))
+    const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7fff
+    view.setInt16(offset, int16, true)
+    offset += bytesPerSample
+  }
+
+  return buffer
+}
+
+
 export function useAudioRecorder() {
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -11,7 +92,9 @@ export function useAudioRecorder() {
   const [uploadResult, setUploadResult] = useState<string | null>(null)
 
   const captureRef = useRef<CaptureResources | null>(null)
-  const recorderRef = useRef<RecorderSession | null>(null)
+  const recordedChunksRef = useRef<Float32Array[]>([])
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const sampleRateRef = useRef<number>(44100)
 
   const start = useCallback(async () => {
     try {
@@ -23,9 +106,9 @@ export function useAudioRecorder() {
       // 1) Ask permissions here, inside the button-triggered flow
       const micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
         },
         video: false,
       })
@@ -35,6 +118,8 @@ export function useAudioRecorder() {
         audio: true,
       })
   
+      screenStream.getVideoTracks().forEach((track) => track.stop())
+
       const micTrack = micStream.getAudioTracks()[0]
       const systemTrack = screenStream.getAudioTracks()[0]
   
@@ -43,44 +128,59 @@ export function useAudioRecorder() {
       }
   
       if (!systemTrack) {
-        throw new Error('System audio was not included in the screen share')
+        throw new Error('system audio not captured (loopback failed)')
       }
   
       // 2) Mix mic + system audio
       const audioContext = new AudioContext()
-      const destination = audioContext.createMediaStreamDestination()
-  
-      const micSource = audioContext.createMediaStreamSource(
-        new MediaStream([micTrack])
-      )
-      const systemSource = audioContext.createMediaStreamSource(
-        new MediaStream([systemTrack])
-      )
-  
-      const micGain = audioContext.createGain()
-      micGain.gain.value = 1.0
-  
-      const systemGain = audioContext.createGain()
-      systemGain.gain.value = 1.0
-  
-      micSource.connect(micGain).connect(destination)
-      systemSource.connect(systemGain).connect(destination)
-  
-      const capture = {
-        mixedStream: destination.stream,
+      const micSource = audioContext.createMediaStreamSource(new MediaStream([micTrack]))
+      const systemSource = audioContext.createMediaStreamSource(new MediaStream([systemTrack]))
+      const mixBus = audioContext.createGain()
+      const processor = audioContext.createScriptProcessor(4096, 2, 1)
+      const silentGain = audioContext.createGain()
+
+      silentGain.gain.value = 0
+      recordedChunksRef.current = []
+      sampleRateRef.current = audioContext.sampleRate
+
+      processor.onaudioprocess = (event) => {
+        const inputBuffer = event.inputBuffer
+        const frameCount = inputBuffer.length
+        const channelCount = inputBuffer.numberOfChannels
+        const monoChunk = new Float32Array(frameCount)
+
+        for (let sampleIndex = 0; sampleIndex < frameCount; sampleIndex += 1) {
+          let sum = 0
+          for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+            sum += inputBuffer.getChannelData(channelIndex)[sampleIndex]
+          }
+          monoChunk[sampleIndex] = sum / channelCount
+        }
+
+        recordedChunksRef.current.push(monoChunk)
+      }
+
+      micSource.connect(mixBus)
+      systemSource.connect(mixBus)
+      mixBus.connect(processor)
+      processor.connect(silentGain)
+      silentGain.connect(audioContext.destination)
+
+      captureRef.current = {
         micStream,
         screenStream,
         audioContext,
+        nodes: [micSource, systemSource, mixBus, processor, silentGain],
       }
-  
-      captureRef.current = capture
-  
-      // 3) Start recording
-      const recorder = createRecorder(capture.mixedStream)
-      recorderRef.current = recorder
-  
+      processorRef.current = processor
+
       setStatus('recording')
     } catch (err) {
+      cleanupCapture(captureRef.current)
+      captureRef.current = null
+      processorRef.current = null
+      recordedChunksRef.current = []
+
       setStatus('error')
       setError(err instanceof Error ? err.message : 'Failed to start recording')
     }
@@ -88,32 +188,44 @@ export function useAudioRecorder() {
 
   const stopAndSave = useCallback(async () => {
     try {
-      if (!recorderRef.current) {
+      if (!captureRef.current || !processorRef.current) {
         throw new Error('Recorder is not active')
       }
 
       setStatus('stopping')
-      const blob = await recorderRef.current.stop()
+      processorRef.current.onaudioprocess = null
+
+      const mergedSamples = mergeChunks(recordedChunksRef.current)
+      if (mergedSamples.length === 0) {
+        throw new Error('No audio was recorded')
+      }
+
+      const wavArrayBuffer = encodeWav(mergedSamples, sampleRateRef.current)
+      const fileName = `recording-${new Date().toISOString().replace(/[:.]/g, '-')}.flac`
+
+      cleanupCapture(captureRef.current)
+
+      captureRef.current = null
+      processorRef.current = null
+      recordedChunksRef.current = []
 
       setStatus('saving')
-      const saveResult = await saveBlobLocally(blob)
-
-      cleanupCapture(captureRef.current ?? {})
-      captureRef.current = null
-      recorderRef.current = null
+      const saveResult = await window.electronAPI.saveAudioFile(wavArrayBuffer, fileName)
 
       if (saveResult.canceled) {
         setStatus('idle')
         return null
       }
 
-      setSavedPath(saveResult.filePath)
+      // setSavedPath(saveResult.filePath)
       setStatus('done')
-      return saveResult.filePath
+      // return saveResult.filePath
     } catch (err) {
-      cleanupCapture(captureRef.current ?? {})
+      cleanupCapture(captureRef.current)
+
       captureRef.current = null
-      recorderRef.current = null
+      processorRef.current = null
+      recordedChunksRef.current = []
 
       setStatus('error')
       setError(err instanceof Error ? err.message : 'Failed to stop recording')
