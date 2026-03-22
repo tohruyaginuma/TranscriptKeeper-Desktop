@@ -2,12 +2,22 @@ export {};
 
 declare global {
   interface Window {
-    recorderAPI: {
-      ping: () => string;
-
-      // add as you implement:
-      // listDesktopSources: () => Promise<Array<{ id: string; name: string }>>;
-      // saveWebm: (data: ArrayBuffer) => Promise<void>;
+    electronAPI: {
+      saveAudioFile: (
+        arrayBuffer: ArrayBuffer,
+        defaultFileName: string
+      ) => Promise<
+        | { canceled: true }
+        | { canceled: false; filePath: string }
+      >
+      uploadAudioFile: (
+        filePath: string,
+        uploadUrl: string
+      ) => Promise<{
+        ok: true
+        status: number
+        body: string
+      }>
     };
   }
 }
