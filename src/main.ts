@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import fs from "fs/promises";
@@ -35,6 +35,11 @@ const createWindow = () => {
       preload: path.join(__dirname, "preload.js"),
     },
   });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url)
+    return { action: 'deny' }
+  })
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -158,6 +163,48 @@ const recordVoiceHandle = () => {
         status: response.status,
         body: text,
       }
+    }
+  )
+
+  ipcMain.handle(
+    'transcript:create',
+    async (
+      _event,
+      args: {
+        filePath: string
+        requestUrl: string
+        language: string
+        idToken?: string
+      }
+    ) => {
+      const { filePath, requestUrl, language, idToken } = args
+
+      const fileBuffer = await fs.readFile(filePath)
+      const fileName = path.basename(filePath)
+
+      const formData = new FormData()
+      const blob = new Blob([new Uint8Array(fileBuffer)], { type: 'audio/flac' })
+      formData.append('language', language)
+      formData.append('audio', blob, fileName)
+
+      const headers = new Headers()
+      if (idToken) {
+        headers.set('Authorization', `Bearer ${idToken}`)
+      }
+
+      const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+
+      const text = await response.text()
+
+      if (!response.ok) {
+        throw new Error(`Transcript upload failed: ${response.status} ${text}`)
+      }
+
+      return JSON.parse(text) as { transcript_id: string }
     }
   )
 }

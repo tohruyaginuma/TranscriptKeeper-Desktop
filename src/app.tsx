@@ -7,11 +7,15 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Text from "@/components/text";
 import Flex from "@/components/flex";
+import Logo from "@/components/logo";
 import Visualizer from "@/components/visualizer";
 import Timer from "@/components/timer";
 import TimerController from "@/components/timer-controller";
+import { API_ROOT, WEB_ROOT } from "@/config/constants";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+import { buildTranscriptUrl, createNote } from "@/lib/api";
+import dayjs from "dayjs";
 
 const App = () => {
   const {
@@ -19,6 +23,7 @@ const App = () => {
     idToken,
     isReady,
     isAuthenticating,
+    isBackendAuthenticated,
     error: authError,
     signInWithGoogle,
     signOut,
@@ -31,27 +36,84 @@ const App = () => {
     uploadResult,
     start,
     stopAndSave,
-    uploadSavedFile,
     isRecording,
   } = useAudioRecorder();
-  const [uploadUrl, setUploadUrl] = useState("http://localhost:8787/upload");
+  const [noteId, setNoteId] = useState<string | null>(null);
+  const [transcriptId, setTranscriptId] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isSubmittingTranscript, setIsSubmittingTranscript] = useState(false);
 
   const signedIn = Boolean(user);
   const displayName = user?.displayName || user?.email || "Signed in user";
   const secondaryText = user?.email || "Google account";
   const visibleToken = idToken ? `${idToken.slice(0, 24)}...` : null;
-  const visibleError = authError || error;
+  const visibleError = submissionError || authError || error;
+  const noteUrl = noteId ? `${WEB_ROOT}/notes/${noteId}` : null;
+
+  const openExternalUrl = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const submitSavedAudio = async (filePath: string) => {
+    if (!idToken) {
+      throw new Error("ID token is not available");
+    }
+
+    const note = await createNote(idToken, `Recording at ${dayjs().format("DD MMM YYYY")}`);
+    setNoteId(note.note_id);
+
+    const transcript = await window.electronAPI.createTranscript(
+      filePath,
+      buildTranscriptUrl(note.note_id),
+      "en",
+      idToken
+    );
+    setTranscriptId(transcript.transcript_id);
+  };
+
+  const handleStop = async () => {
+    setSubmissionError(null);
+    setNoteId(null);
+    setTranscriptId(null);
+
+    const filePath = await stopAndSave();
+
+    if (!filePath || !idToken) {
+      return;
+    }
+
+    try {
+      setIsSubmittingTranscript(true);
+      await submitSavedAudio(filePath);
+    } catch (err) {
+      setSubmissionError(
+        err instanceof Error ? err.message : "Failed to create transcript"
+      );
+    } finally {
+      setIsSubmittingTranscript(false);
+    }
+  };
 
   return (
     <Flex gapY="md" className="h-screen">
       <Flex hasPadding gapY="md" itemsCenter justifyCenter className="flex-1">
+        <div className="w-full text-center">
+          <Logo
+            onClick={() => {
+              openExternalUrl(WEB_ROOT);
+            }}
+          />
+        </div>
+
         <Visualizer isRecording={isRecording} />
         <Timer isRecording={isRecording} elapsed={0} />
         <TimerController
           isRecording={isRecording}
           disabled={!signedIn}
           onRecord={start}
-          onStop={stopAndSave}
+          onStop={() => {
+            void handleStop();
+          }}
         />
 
         {!isReady && <p><strong>Auth:</strong> Checking sign-in state...</p>}
@@ -64,14 +126,34 @@ const App = () => {
 
         <div style={{ marginBottom: 16 }}>
           <button
-            onClick={() => uploadSavedFile(uploadUrl, idToken ?? undefined)}
-            disabled={!savedPath || !signedIn || status === "uploading"}
+            onClick={() => {
+              if (!savedPath) {
+                return;
+              }
+
+              setSubmissionError(null);
+              setNoteId(null);
+              setTranscriptId(null);
+              setIsSubmittingTranscript(true);
+
+              void submitSavedAudio(savedPath)
+                .catch((err) => {
+                  setSubmissionError(
+                    err instanceof Error ? err.message : "Failed to create transcript"
+                  );
+                })
+                .finally(() => {
+                  setIsSubmittingTranscript(false);
+                });
+            }}
+            disabled={!savedPath || !signedIn || isSubmittingTranscript}
           >
-            Upload saved file
+            Retry note + transcript upload
           </button>
         </div>
 
         <p><strong>Status:</strong> {status}</p>
+        <p><strong>API Root:</strong> {API_ROOT}</p>
         {savedPath && (
           <p>
             <strong>Saved file:</strong> {savedPath}
@@ -83,19 +165,22 @@ const App = () => {
             {visibleToken && (
               <p><strong>ID token:</strong> {visibleToken}</p>
             )}
+            <p><strong>Backend auth:</strong> {isBackendAuthenticated ? "synced" : "pending"}</p>
           </>
         )}
-
-        <div style={{ marginBottom: 16 }}>
-          <label>
-            Upload URL:{" "}
-            <input
-              value={uploadUrl}
-              onChange={(e) => setUploadUrl(e.target.value)}
-              style={{ width: 420 }}
-            />
-          </label>
-        </div>
+        {noteId && <p><strong>Note ID:</strong> {noteId}</p>}
+        {transcriptId && <p><strong>Transcript ID:</strong> {transcriptId}</p>}
+        {isSubmittingTranscript && <p><strong>Submission:</strong> Creating note and transcript...</p>}
+        {transcriptId && noteUrl && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              openExternalUrl(noteUrl);
+            }}
+          >
+            See transcript
+          </Button>
+        )}
 
         {uploadResult && (
           <pre

@@ -8,11 +8,13 @@ import {
 } from 'firebase/auth'
 import {
   createContext,
+  useRef,
   useContext,
   useEffect,
   useState,
   type ReactNode,
 } from 'react'
+import { syncAuthWithApi } from '@/lib/api'
 import { createGoogleProvider, getFirebaseAuth } from '@/lib/firebase'
 
 type AuthContextValue = {
@@ -21,6 +23,7 @@ type AuthContextValue = {
   isReady: boolean
   isAuthenticating: boolean
   error: string | null
+  isBackendAuthenticated: boolean
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   refreshIdToken: () => Promise<string | null>
@@ -37,7 +40,9 @@ export function AuthProvider({ children }: Props) {
   const [idToken, setIdToken] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
+  const [isBackendAuthenticated, setIsBackendAuthenticated] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const lastSyncedTokenRef = useRef<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -57,6 +62,8 @@ export function AuthProvider({ children }: Props) {
 
           if (!nextUser) {
             setIdToken(null)
+            setIsBackendAuthenticated(false)
+            lastSyncedTokenRef.current = null
             setIsReady(true)
             return
           }
@@ -90,6 +97,42 @@ export function AuthProvider({ children }: Props) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!user || !idToken || lastSyncedTokenRef.current === idToken) {
+      return
+    }
+
+    let isActive = true
+
+    async function syncBackendSession() {
+      try {
+        await syncAuthWithApi(idToken)
+
+        if (!isActive) {
+          return
+        }
+
+        lastSyncedTokenRef.current = idToken
+        setIsBackendAuthenticated(true)
+      } catch (err) {
+        if (!isActive) {
+          return
+        }
+
+        setIsBackendAuthenticated(false)
+        setError(
+          err instanceof Error ? err.message : 'Failed to sync authenticated session'
+        )
+      }
+    }
+
+    void syncBackendSession()
+
+    return () => {
+      isActive = false
+    }
+  }, [idToken, user])
+
   const signInWithGoogle = async () => {
     setError(null)
     setIsAuthenticating(true)
@@ -97,8 +140,13 @@ export function AuthProvider({ children }: Props) {
     try {
       const auth = getFirebaseAuth()
       await setPersistence(auth, browserLocalPersistence)
-      await signInWithPopup(auth, createGoogleProvider())
+      const credential = await signInWithPopup(auth, createGoogleProvider())
+      const nextToken = await credential.user.getIdToken()
+      await syncAuthWithApi(nextToken)
+      lastSyncedTokenRef.current = nextToken
+      setIsBackendAuthenticated(true)
     } catch (err) {
+      setIsBackendAuthenticated(false)
       setError(err instanceof Error ? err.message : 'Failed to sign in')
       throw err
     } finally {
@@ -110,6 +158,7 @@ export function AuthProvider({ children }: Props) {
     setError(null)
     const auth = getFirebaseAuth()
     await firebaseSignOut(auth)
+    setIsBackendAuthenticated(false)
   }
 
   const refreshIdToken = async () => {
@@ -129,6 +178,7 @@ export function AuthProvider({ children }: Props) {
         idToken,
         isReady,
         isAuthenticating,
+        isBackendAuthenticated,
         error,
         signInWithGoogle,
         signOut,

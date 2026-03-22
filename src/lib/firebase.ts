@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import { GoogleAuthProvider, getAuth } from 'firebase/auth'
+import { FIREBASE_CONFIG } from '@/config/constants'
 
 type FirebaseRendererConfig = {
   apiKey: string
@@ -21,7 +22,7 @@ const requiredConfigKeys: Array<keyof FirebaseRendererConfig> = [
 ]
 
 function readFirebaseConfig(): FirebaseRendererConfig {
-  const config: FirebaseRendererConfig = window.electronAPI.getFirebaseConfig()
+  const config: FirebaseRendererConfig = FIREBASE_CONFIG
   const missingKeys = requiredConfigKeys.filter((key) => !config[key])
 
   if (missingKeys.length > 0) {
