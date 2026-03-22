@@ -6,6 +6,8 @@ type SaveAudioResult =
 declare global {
   interface Window {
     electronAPI: {
+      enableLoopbackAudio: () => Promise<void>
+      disableLoopbackAudio: () => Promise<void>
       saveAudioFile: (
         arrayBuffer: ArrayBuffer,
         defaultFileName: string

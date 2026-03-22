@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, ipcMain, dialog, desktopCapturer } from "electron";
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import fs from "fs/promises";
@@ -6,6 +6,15 @@ import { initMain } from 'electron-audio-loopback'
 import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+
+if (process.platform === 'darwin') {
+  // Electron 40 on macOS 15 can return a silent desktop audio stream when the
+  // newer CoreAudio Tap path is selected, so prefer the older permission flow.
+  app.commandLine.appendSwitch(
+    'disable-features',
+    'MacCatapLoopbackAudioForScreenShare'
+  )
+}
 
 initMain()
 const execFileAsync = promisify(execFile)
@@ -41,17 +50,6 @@ const createWindow = () => {
 };
 
 const recordVoiceHandle = () => {
-  session.defaultSession.setDisplayMediaRequestHandler(
-    async (request, callback) => {
-      const sources = await desktopCapturer.getSources({ types: ['screen'] })
-  
-      callback({
-        video: sources[0],
-        audio: 'loopback',
-      })
-    },
-  )
-
   ipcMain.handle(
     'audio:save',
     async (_event, args: { arrayBuffer: ArrayBuffer; defaultFileName: string }) => {

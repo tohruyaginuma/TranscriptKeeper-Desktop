@@ -1,7 +1,4 @@
 import { useCallback, useRef, useState } from 'react'
-import { cleanupCapture, createMixedAudioStream, type CaptureResources } from '../lib/audio'
-import { createRecorder, type RecorderSession } from '../lib/recorder'
-import { saveBlobLocally } from '@/lib/file'
 import { Status } from '@/types/types'
 
 type CaptureResources = {
@@ -97,6 +94,8 @@ export function useAudioRecorder() {
   const sampleRateRef = useRef<number>(44100)
 
   const start = useCallback(async () => {
+    let loopbackEnabled = false
+
     try {
       setError(null)
       setSavedPath(null)
@@ -113,10 +112,16 @@ export function useAudioRecorder() {
         video: false,
       })
   
+      await window.electronAPI.enableLoopbackAudio()
+      loopbackEnabled = true
+
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: true,
       })
+
+      await window.electronAPI.disableLoopbackAudio()
+      loopbackEnabled = false
   
       screenStream.getVideoTracks().forEach((track) => track.stop())
 
@@ -176,6 +181,12 @@ export function useAudioRecorder() {
 
       setStatus('recording')
     } catch (err) {
+      if (loopbackEnabled) {
+        await window.electronAPI.disableLoopbackAudio().catch(() => {
+          // no-op
+        })
+      }
+
       cleanupCapture(captureRef.current)
       captureRef.current = null
       processorRef.current = null
@@ -186,7 +197,7 @@ export function useAudioRecorder() {
     }
   }, [])
 
-  const stopAndSave = useCallback(async () => {
+  const stopAndSave = useCallback(async (): Promise<string | null | void> => {
     try {
       if (!captureRef.current || !processorRef.current) {
         throw new Error('Recorder is not active')

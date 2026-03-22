@@ -10,6 +10,12 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    extendInfo: {
+      NSMicrophoneUsageDescription:
+        'Transcript Keeper needs microphone access to record your voice.',
+      NSAudioCaptureUsageDescription:
+        'Transcript Keeper needs system audio access to record audio playing on your Mac.',
+    },
   },
   rebuildConfig: {},
   makers: [

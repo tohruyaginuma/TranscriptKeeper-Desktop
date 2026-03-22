@@ -7,7 +7,6 @@ import Flex from "@/components/flex";
 import Visualizer from "@/components/visualizer";
 import Timer from "@/components/timer";
 import TimerController from "@/components/timer-controller";
-import useApp from "@/hooks/use-app";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";

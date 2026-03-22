@@ -3,6 +3,12 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  enableLoopbackAudio: () => {
+    return ipcRenderer.invoke('enable-loopback-audio');
+  },
+  disableLoopbackAudio: () => {
+    return ipcRenderer.invoke('disable-loopback-audio');
+  },
   saveAudioFile: (arrayBuffer: ArrayBuffer, defaultFileName: string) => {
     return ipcRenderer.invoke("audio:save", { arrayBuffer, defaultFileName });
   },
