@@ -123,9 +123,10 @@ const recordVoiceHandle = () => {
       args: {
         filePath: string
         uploadUrl: string
+        idToken?: string
       }
     ) => {
-      const { filePath, uploadUrl } = args
+      const { filePath, uploadUrl, idToken } = args
 
       const fileBuffer = await fs.readFile(filePath)
       const fileName = path.basename(filePath)
@@ -135,8 +136,14 @@ const recordVoiceHandle = () => {
       const blob = new Blob([new Uint8Array(fileBuffer)], { type: mimeType })
       formData.append('file', blob, fileName)
 
+      const headers = new Headers()
+      if (idToken) {
+        headers.set('Authorization', `Bearer ${idToken}`)
+      }
+
       const response = await fetch(uploadUrl, {
         method: 'POST',
+        headers,
         body: formData,
       })
 

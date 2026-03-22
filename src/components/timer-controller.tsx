@@ -3,12 +3,13 @@ import { Mic, Square } from "lucide-react";
 
 type Props = {
   isRecording: boolean;
+  disabled?: boolean;
   onRecord: () => void;
   onStop: () => void;
 };
 
 const TimerController = (props: Props) => {
-  const { isRecording, onRecord, onStop } = props;
+  const { isRecording, disabled = false, onRecord, onStop } = props;
 
   return (
     <div className="flex items-center gap-6">
@@ -16,7 +17,7 @@ const TimerController = (props: Props) => {
         variant="outline"
         size="icon"
         onClick={onRecord}
-        disabled={isRecording}
+        disabled={disabled || isRecording}
         aria-label="Recording"
         className={`relative h-16 w-16 rounded-full border-2 transition-all duration-300 ${
           isRecording
@@ -38,7 +39,7 @@ const TimerController = (props: Props) => {
         variant="outline"
         size="icon"
         onClick={onStop}
-        disabled={!isRecording}
+        disabled={disabled || !isRecording}
         aria-label="Stop"
         className={`h-16 w-16 rounded-full border-2 transition-all duration-300 ${
           isRecording

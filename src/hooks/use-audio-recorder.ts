@@ -228,9 +228,14 @@ export function useAudioRecorder() {
         return null
       }
 
-      // setSavedPath(saveResult.filePath)
+      if (!('filePath' in saveResult)) {
+        throw new Error('Saved file path was not returned')
+      }
+
+      const { filePath } = saveResult
+      setSavedPath(filePath)
       setStatus('done')
-      // return saveResult.filePath
+      return filePath
     } catch (err) {
       cleanupCapture(captureRef.current)
 
@@ -244,14 +249,14 @@ export function useAudioRecorder() {
     }
   }, [])
 
-  const uploadSavedFile = useCallback(async (uploadUrl: string) => {
+  const uploadSavedFile = useCallback(async (uploadUrl: string, idToken?: string) => {
     try {
       if (!savedPath) {
         throw new Error('No saved file found')
       }
 
       setStatus('uploading')
-      const result = await window.electronAPI.uploadAudioFile(savedPath, uploadUrl)
+      const result = await window.electronAPI.uploadAudioFile(savedPath, uploadUrl, idToken)
       setUploadResult(result.body)
       setStatus('done')
     } catch (err) {

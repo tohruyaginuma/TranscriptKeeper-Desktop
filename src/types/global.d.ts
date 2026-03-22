@@ -1,4 +1,15 @@
 export {};
+
+type FirebaseWebConfig = {
+  apiKey: string
+  authDomain: string
+  projectId: string
+  storageBucket: string
+  messagingSenderId: string
+  appId: string
+  measurementId?: string
+}
+
 type SaveAudioResult =
   | { canceled: true }
   | { canceled: false; filePath: string }
@@ -6,6 +17,7 @@ type SaveAudioResult =
 declare global {
   interface Window {
     electronAPI: {
+      getFirebaseConfig: () => FirebaseWebConfig
       enableLoopbackAudio: () => Promise<void>
       disableLoopbackAudio: () => Promise<void>
       saveAudioFile: (
@@ -14,7 +26,8 @@ declare global {
       ) => Promise<SaveAudioResult>
       uploadAudioFile: (
         filePath: string,
-        uploadUrl: string
+        uploadUrl: string,
+        idToken?: string
       ) => Promise<{
         ok: true
         status: number
