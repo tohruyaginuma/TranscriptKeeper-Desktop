@@ -22,20 +22,12 @@ async function postJson<TResponse>(
     throw new Error('API_ROOT is not configured')
   }
 
-  const response = await fetch(buildApiUrl(pathname), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-
-  const text = await response.text()
-
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${text}`)
-  }
+  const text = await window.electronAPI.postApiJson(
+    API_ROOT,
+    pathname,
+    idToken,
+    body
+  )
 
   if (!text) {
     return {} as TResponse

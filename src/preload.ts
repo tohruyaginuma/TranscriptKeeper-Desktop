@@ -5,6 +5,19 @@ const runtimeConfig = ipcRenderer.sendSync('runtime-config:get')
 
 contextBridge.exposeInMainWorld('electronAPI', {
   runtimeConfig,
+  postApiJson: (
+    apiRoot: string,
+    pathname: string,
+    idToken: string,
+    body?: Record<string, unknown>
+  ) => {
+    return ipcRenderer.invoke('api:post-json', {
+      apiRoot,
+      pathname,
+      idToken,
+      body,
+    })
+  },
   enableLoopbackAudio: () => {
     return ipcRenderer.invoke('enable-loopback-audio')
   },

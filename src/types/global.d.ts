@@ -14,6 +14,12 @@ declare global {
   interface Window {
     electronAPI: {
       runtimeConfig: AppRuntimeConfig
+      postApiJson: (
+        apiRoot: string,
+        pathname: string,
+        idToken: string,
+        body?: Record<string, unknown>
+      ) => Promise<string>
       enableLoopbackAudio: () => Promise<void>
       disableLoopbackAudio: () => Promise<void>
       saveAudioFile: (
