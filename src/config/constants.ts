@@ -1,20 +1,51 @@
-import { DEFAULT_RUNTIME_CONFIG } from '@/config/runtime-config'
+import {
+  DEFAULT_RUNTIME_CONFIG,
+  type FirebaseRendererConfig,
+} from '@/config/runtime-config'
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, '')
 }
 
-const runtimeConfig =
-  typeof window === 'undefined'
-    ? DEFAULT_RUNTIME_CONFIG
-    : window.electronAPI?.runtimeConfig ?? DEFAULT_RUNTIME_CONFIG
+const electronRuntimeConfig =
+  typeof window === 'undefined' ? undefined : window.electronAPI?.runtimeConfig
 
-export const FIREBASE_CONFIG = runtimeConfig.firebase
+function readFirebaseValue(
+  key: keyof FirebaseRendererConfig,
+  envKey: keyof ImportMetaEnv
+) {
+  return (
+    electronRuntimeConfig?.firebase[key] ||
+    import.meta.env[envKey] ||
+    DEFAULT_RUNTIME_CONFIG.firebase[key] ||
+    ''
+  )
+}
+
+export const FIREBASE_CONFIG: FirebaseRendererConfig = {
+  apiKey: readFirebaseValue('apiKey', 'VITE_FIREBASE_API_KEY'),
+  authDomain: readFirebaseValue('authDomain', 'VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: readFirebaseValue('projectId', 'VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: readFirebaseValue('storageBucket', 'VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: readFirebaseValue(
+    'messagingSenderId',
+    'VITE_FIREBASE_MESSAGING_SENDER_ID'
+  ),
+  appId: readFirebaseValue('appId', 'VITE_FIREBASE_APP_ID'),
+  measurementId:
+    electronRuntimeConfig?.firebase.measurementId ||
+    import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ||
+    DEFAULT_RUNTIME_CONFIG.firebase.measurementId,
+}
 
 export const API_ROOT = trimTrailingSlash(
-  runtimeConfig.apiRoot || DEFAULT_RUNTIME_CONFIG.apiRoot
+  electronRuntimeConfig?.apiRoot ||
+    import.meta.env.VITE_API_ROOT ||
+    DEFAULT_RUNTIME_CONFIG.apiRoot
 )
 
 export const WEB_ROOT = trimTrailingSlash(
-  runtimeConfig.webRoot || DEFAULT_RUNTIME_CONFIG.webRoot
+  electronRuntimeConfig?.webRoot ||
+    import.meta.env.VITE_WEB_ROOT ||
+    DEFAULT_RUNTIME_CONFIG.webRoot
 )

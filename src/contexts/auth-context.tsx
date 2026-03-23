@@ -1,8 +1,10 @@
 import {
   browserLocalPersistence,
+  getRedirectResult,
   onIdTokenChanged,
   setPersistence,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth'
@@ -52,6 +54,19 @@ export function AuthProvider({ children }: Props) {
       try {
         const auth = getFirebaseAuth()
         await setPersistence(auth, browserLocalPersistence)
+        const redirectResult = await getRedirectResult(auth)
+
+        if (redirectResult?.user) {
+          const redirectToken = await redirectResult.user.getIdToken()
+
+          if (!isMounted) {
+            return
+          }
+
+          await syncAuthWithApi(redirectToken)
+          lastSyncedTokenRef.current = redirectToken
+          setIsBackendAuthenticated(true)
+        }
 
         unsubscribe = onIdTokenChanged(auth, async (nextUser) => {
           if (!isMounted) {
@@ -140,12 +155,24 @@ export function AuthProvider({ children }: Props) {
     try {
       const auth = getFirebaseAuth()
       await setPersistence(auth, browserLocalPersistence)
-      const credential = await signInWithPopup(auth, createGoogleProvider())
+      const provider = createGoogleProvider()
+      const credential = await signInWithPopup(auth, provider)
       const nextToken = await credential.user.getIdToken()
       await syncAuthWithApi(nextToken)
       lastSyncedTokenRef.current = nextToken
       setIsBackendAuthenticated(true)
     } catch (err) {
+      if (
+        err instanceof Error &&
+        'code' in err &&
+        (err.code === 'auth/popup-blocked' ||
+          err.code === 'auth/operation-not-supported-in-this-environment')
+      ) {
+        const auth = getFirebaseAuth()
+        await signInWithRedirect(auth, createGoogleProvider())
+        return
+      }
+
       setIsBackendAuthenticated(false)
       setError(err instanceof Error ? err.message : 'Failed to sign in')
       throw err
