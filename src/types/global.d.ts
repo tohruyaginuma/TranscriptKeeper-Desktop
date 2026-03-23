@@ -1,3 +1,5 @@
+import type { AppRuntimeConfig } from '@/config/runtime-config'
+
 export {};
 
 type SaveAudioResult =
@@ -11,6 +13,7 @@ type CreateTranscriptResult = {
 declare global {
   interface Window {
     electronAPI: {
+      runtimeConfig: AppRuntimeConfig
       enableLoopbackAudio: () => Promise<void>
       disableLoopbackAudio: () => Promise<void>
       saveAudioFile: (
@@ -32,6 +35,6 @@ declare global {
         status: number
         body: string
       }>
-    };
+    }
   }
 }

@@ -1,16 +1,7 @@
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import { GoogleAuthProvider, getAuth } from 'firebase/auth'
 import { FIREBASE_CONFIG } from '@/config/constants'
-
-type FirebaseRendererConfig = {
-  apiKey: string
-  authDomain: string
-  projectId: string
-  storageBucket: string
-  messagingSenderId: string
-  appId: string
-  measurementId?: string
-}
+import type { FirebaseRendererConfig } from '@/config/runtime-config'
 
 const requiredConfigKeys: Array<keyof FirebaseRendererConfig> = [
   'apiKey',

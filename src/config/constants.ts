@@ -1,15 +1,20 @@
-export const FIREBASE_CONFIG = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? undefined,
+import { DEFAULT_RUNTIME_CONFIG } from '@/config/runtime-config'
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, '')
 }
 
-export const API_ROOT = (import.meta.env.VITE_API_ROOT ?? 'http://localhost:8787')
-  .replace(/\/+$/, '')
+const runtimeConfig =
+  typeof window === 'undefined'
+    ? DEFAULT_RUNTIME_CONFIG
+    : window.electronAPI?.runtimeConfig ?? DEFAULT_RUNTIME_CONFIG
 
-export const WEB_ROOT = (import.meta.env.VITE_WEB_ROOT ?? 'http://localhost:3000')
-  .replace(/\/+$/, '')
+export const FIREBASE_CONFIG = runtimeConfig.firebase
+
+export const API_ROOT = trimTrailingSlash(
+  runtimeConfig.apiRoot || DEFAULT_RUNTIME_CONFIG.apiRoot
+)
+
+export const WEB_ROOT = trimTrailingSlash(
+  runtimeConfig.webRoot || DEFAULT_RUNTIME_CONFIG.webRoot
+)
