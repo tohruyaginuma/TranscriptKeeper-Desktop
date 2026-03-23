@@ -29,3 +29,9 @@ npm run make:dmg
 ```
 
 Artifacts are created under `out/make`.
+
+## GitHub Release
+
+- Pushing a tag like `v1.0.1` triggers GitHub Actions to build an arm64 DMG.
+- The workflow creates or updates the GitHub Release for that tag and uploads the DMG.
+- Tags that include `-`, such as `v1.0.1-rc1`, are published as prereleases.
