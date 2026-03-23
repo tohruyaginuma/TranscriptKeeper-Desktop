@@ -189,8 +189,9 @@ const createWindow = async () => {
     await mainWindow.loadURL(packagedRendererUrl)
   }
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.webContents.openDevTools()
+  }
 };
 
 const recordVoiceHandle = () => {
