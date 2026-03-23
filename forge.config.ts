@@ -26,6 +26,12 @@ const PUBLIC_RUNTIME_ENV_KEYS = [
   'VITE_FIREBASE_APP_ID',
   'VITE_FIREBASE_MEASUREMENT_ID',
 ];
+const APP_BUNDLE_ID = 'com.tohruyaginuma.transcriptkeeperdesktop';
+const MAC_ENTITLEMENTS_PATH = path.resolve(
+  process.cwd(),
+  'build',
+  'entitlements.mac.plist'
+);
 
 function parseEnvFile(contents: string) {
   const env: Record<string, string> = {};
@@ -113,10 +119,46 @@ function buildBundledRuntimeEnvResource() {
   return [RUNTIME_ENV_OUTPUT_PATH];
 }
 
+function buildOsxSignConfig() {
+  const identity = process.env.APPLE_SIGNING_IDENTITY;
+
+  if (!identity) {
+    return undefined;
+  }
+
+  return {
+    identity,
+    hardenedRuntime: true,
+    gatekeeperAssess: false,
+    entitlements: MAC_ENTITLEMENTS_PATH,
+    entitlementsInherit: MAC_ENTITLEMENTS_PATH,
+  };
+}
+
+function buildOsxNotarizeConfig() {
+  const appleId = process.env.APPLE_ID;
+  const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
+  const teamId = process.env.APPLE_TEAM_ID;
+
+  if (!appleId || !appleIdPassword || !teamId) {
+    return undefined;
+  }
+
+  return {
+    appleId,
+    appleIdPassword,
+    teamId,
+  };
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    appBundleId: APP_BUNDLE_ID,
+    appCategoryType: 'public.app-category.productivity',
     extraResource: buildBundledRuntimeEnvResource(),
+    osxSign: buildOsxSignConfig(),
+    osxNotarize: buildOsxNotarizeConfig(),
     extendInfo: {
       NSMicrophoneUsageDescription:
         'Transcript Keeper needs microphone access to record your voice.',

@@ -35,3 +35,13 @@ Artifacts are created under `out/make`.
 - Pushing a tag like `v1.0.1` triggers GitHub Actions to build an arm64 DMG.
 - The workflow creates or updates the GitHub Release for that tag and uploads the DMG.
 - Tags that include `-`, such as `v1.0.1-rc1`, are published as prereleases.
+
+### Required GitHub Secrets
+
+- `APPLE_ID`: Apple Developer account email.
+- `APPLE_APP_SPECIFIC_PASSWORD`: app-specific password used by notarization.
+- `APPLE_TEAM_ID`: Apple Developer Team ID.
+- `APPLE_SIGNING_IDENTITY`: `Developer ID Application: ...` certificate name.
+- `APPLE_CERTIFICATE_P12_BASE64`: base64-encoded `.p12` certificate export.
+- `APPLE_CERTIFICATE_PASSWORD`: password for the `.p12` export.
+- `KEYCHAIN_PASSWORD`: temporary keychain password for the GitHub Actions runner.
