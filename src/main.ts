@@ -60,6 +60,12 @@ function shouldAllowInternalPopup(url: string) {
   }
 }
 
+function buildApiUrl(apiRoot: string, pathname: string) {
+  const normalizedRoot = apiRoot.replace(/\/+$/, '')
+  const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`
+  return `${normalizedRoot}${normalizedPath}`
+}
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -188,6 +194,37 @@ const createWindow = async () => {
 };
 
 const recordVoiceHandle = () => {
+  ipcMain.handle(
+    'api:post-json',
+    async (
+      _event,
+      args: {
+        apiRoot: string
+        pathname: string
+        idToken: string
+        body?: Record<string, unknown>
+      }
+    ) => {
+      const { apiRoot, pathname, idToken, body } = args
+      const response = await fetch(buildApiUrl(apiRoot, pathname), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+
+      const text = await response.text()
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${text}`)
+      }
+
+      return text
+    }
+  )
+
   ipcMain.handle(
     'audio:save',
     async (_event, args: { arrayBuffer: ArrayBuffer; defaultFileName: string }) => {
