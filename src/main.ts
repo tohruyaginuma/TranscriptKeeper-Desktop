@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell, systemPreferences } from "electron";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
 import started from "electron-squirrel-startup";
@@ -195,6 +195,32 @@ const createWindow = async () => {
 };
 
 const recordVoiceHandle = () => {
+  ipcMain.handle('permissions:get-microphone-status', () => {
+    if (process.platform !== 'darwin') {
+      return 'granted'
+    }
+
+    return systemPreferences.getMediaAccessStatus('microphone')
+  })
+
+  ipcMain.handle('permissions:request-microphone-access', async () => {
+    if (process.platform !== 'darwin') {
+      return true
+    }
+
+    const currentStatus = systemPreferences.getMediaAccessStatus('microphone')
+
+    if (currentStatus === 'granted') {
+      return true
+    }
+
+    if (currentStatus === 'denied' || currentStatus === 'restricted') {
+      return false
+    }
+
+    return systemPreferences.askForMediaAccess('microphone')
+  })
+
   ipcMain.handle(
     'api:post-json',
     async (

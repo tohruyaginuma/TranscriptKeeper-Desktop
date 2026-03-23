@@ -14,6 +14,10 @@ declare global {
   interface Window {
     electronAPI: {
       runtimeConfig: AppRuntimeConfig
+      getMicrophoneAccessStatus: () => Promise<
+        'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown'
+      >
+      requestMicrophoneAccess: () => Promise<boolean>
       postApiJson: (
         apiRoot: string,
         pathname: string,

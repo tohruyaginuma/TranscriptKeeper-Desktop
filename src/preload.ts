@@ -115,6 +115,12 @@ const runtimeConfig = loadRuntimeConfig()
 
 contextBridge.exposeInMainWorld('electronAPI', {
   runtimeConfig,
+  getMicrophoneAccessStatus: () => {
+    return ipcRenderer.invoke('permissions:get-microphone-status')
+  },
+  requestMicrophoneAccess: () => {
+    return ipcRenderer.invoke('permissions:request-microphone-access')
+  },
   postApiJson: (
     apiRoot: string,
     pathname: string,

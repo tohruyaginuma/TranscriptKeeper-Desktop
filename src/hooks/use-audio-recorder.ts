@@ -101,6 +101,20 @@ export function useAudioRecorder() {
       setSavedPath(null)
       setUploadResult(null)
       setStatus('preparing')
+
+      const microphoneAccessGranted =
+        await window.electronAPI.requestMicrophoneAccess()
+
+      if (!microphoneAccessGranted) {
+        const microphoneStatus =
+          await window.electronAPI.getMicrophoneAccessStatus()
+
+        throw new Error(
+          microphoneStatus === 'denied' || microphoneStatus === 'restricted'
+            ? 'Microphone access is disabled for Transcript Keeper. Enable it in System Settings > Privacy & Security > Microphone, then restart the app.'
+            : 'Microphone permission was not granted'
+        )
+      }
   
       // 1) Ask permissions here, inside the button-triggered flow
       const micStream = await navigator.mediaDevices.getUserMedia({
