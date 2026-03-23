@@ -6,6 +6,7 @@ type Props = PropsWithChildren<{
   gapX?: "sm" | "md" | "lg";
   gapY?: "sm" | "md" | "lg";
   hasPadding?: boolean;
+  hasPaddingXl?: boolean;
   grow?: boolean;
   itemsCenter?: boolean;
   justifyCenter?: boolean;
@@ -22,6 +23,7 @@ const Flex = (props: Props) => {
     grow,
     gapX,
     gapY,
+    hasPaddingXl,
     className,
   } = props;
 
@@ -32,6 +34,7 @@ const Flex = (props: Props) => {
         { "flex-col": direction === "column" },
         { "flex-row": direction === "row" },
         { "p-4": hasPadding },
+        { "p-8": hasPaddingXl },
         { grow: grow },
         { "items-center": itemsCenter },
         { "justify-center": justifyCenter },
