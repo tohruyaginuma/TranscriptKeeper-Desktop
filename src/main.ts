@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, systemPreferences } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell, systemPreferences, session } from "electron";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
 import started from "electron-squirrel-startup";
@@ -66,6 +66,31 @@ function buildApiUrl(apiRoot: string, pathname: string) {
   return `${normalizedRoot}${normalizedPath}`
 }
 
+function isTrustedRendererOrigin(value: string) {
+  if (!value) {
+    return false
+  }
+
+  try {
+    const parsedUrl = new URL(value)
+
+    if (parsedUrl.protocol === 'http:' && parsedUrl.hostname === 'localhost') {
+      return true
+    }
+
+    if (
+      MAIN_WINDOW_VITE_DEV_SERVER_URL &&
+      value.startsWith(MAIN_WINDOW_VITE_DEV_SERVER_URL)
+    ) {
+      return true
+    }
+
+    return false
+  } catch {
+    return false
+  }
+}
+
 async function requestMicrophoneAccessOnLaunch() {
   if (process.platform !== 'darwin') {
     return
@@ -78,6 +103,57 @@ async function requestMicrophoneAccessOnLaunch() {
   }
 
   await systemPreferences.askForMediaAccess('microphone')
+}
+
+function configureSessionPermissions() {
+  session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission, requestingOrigin, details) => {
+      if (permission !== 'media') {
+        return false
+      }
+
+      const mediaDetails = details as {
+        mediaType?: string
+        mediaTypes?: string[]
+      }
+      const mediaType = mediaDetails.mediaType
+      const mediaTypes = mediaDetails.mediaTypes
+      const requestsAudio =
+        mediaType === 'audio' ||
+        mediaType === 'unknown' ||
+        mediaTypes?.includes('audio')
+
+      if (!requestsAudio) {
+        return false
+      }
+
+      return isTrustedRendererOrigin(requestingOrigin)
+    }
+  )
+
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, permission, callback, details) => {
+      if (permission !== 'media') {
+        callback(false)
+        return
+      }
+
+      const mediaDetails = details as {
+        mediaType?: string
+        mediaTypes?: string[]
+        requestingUrl?: string
+      }
+      const requestsAudio =
+        mediaDetails.mediaTypes?.includes('audio') ||
+        mediaDetails.mediaType === 'audio' ||
+        mediaDetails.mediaType === 'unknown'
+
+      callback(
+        requestsAudio &&
+          isTrustedRendererOrigin(mediaDetails.requestingUrl ?? '')
+      )
+    }
+  )
 }
 
 
@@ -426,6 +502,7 @@ const recordVoiceHandle = () => {
 
 app.whenReady().then(() => {
   recordVoiceHandle()
+  configureSessionPermissions()
   void createWindow().then(() => {
     void requestMicrophoneAccessOnLaunch()
   })
