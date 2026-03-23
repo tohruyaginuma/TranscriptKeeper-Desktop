@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
+import { createServer, type Server } from "node:http";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import fs from "fs/promises";
@@ -18,6 +19,22 @@ if (process.platform === 'darwin') {
 
 initMain()
 const execFileAsync = promisify(execFile)
+let rendererServer: Server | null = null
+
+const RENDERER_MIME_TYPES: Record<string, string> = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+}
 
 function shouldAllowInternalPopup(url: string) {
   if (url === 'about:blank') {
@@ -49,7 +66,81 @@ if (started) {
   app.quit();
 }
 
-const createWindow = () => {
+function getRendererDistPath() {
+  return path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`)
+}
+
+async function startPackagedRendererServer() {
+  if (rendererServer) {
+    const address = rendererServer.address()
+
+    if (address && typeof address !== 'string') {
+      return `http://localhost:${address.port}`
+    }
+  }
+
+  const rendererRoot = getRendererDistPath()
+
+  rendererServer = createServer(async (request, response) => {
+    const requestUrl = new URL(request.url ?? '/', 'http://localhost')
+    const requestedPath = decodeURIComponent(requestUrl.pathname)
+    const safePath = requestedPath === '/' ? '/index.html' : requestedPath
+    const resolvedPath = path.resolve(
+      rendererRoot,
+      `.${safePath}`
+    )
+    const normalizedRoot = path.resolve(rendererRoot)
+    const isInsideRendererRoot =
+      resolvedPath === normalizedRoot || resolvedPath.startsWith(`${normalizedRoot}${path.sep}`)
+
+    if (!isInsideRendererRoot) {
+      response.writeHead(403)
+      response.end('Forbidden')
+      return
+    }
+
+    let filePath = resolvedPath
+
+    try {
+      const stats = await fs.stat(filePath)
+      if (stats.isDirectory()) {
+        filePath = path.join(filePath, 'index.html')
+      }
+    } catch {
+      filePath = path.join(rendererRoot, 'index.html')
+    }
+
+    try {
+      const fileContents = await fs.readFile(filePath)
+      const extension = path.extname(filePath).toLowerCase()
+
+      response.writeHead(200, {
+        'Content-Type':
+          RENDERER_MIME_TYPES[extension] ?? 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      })
+      response.end(fileContents)
+    } catch {
+      response.writeHead(404)
+      response.end('Not found')
+    }
+  })
+
+  return await new Promise<string>((resolve, reject) => {
+    rendererServer?.once('error', reject)
+    rendererServer?.listen(0, '127.0.0.1', () => {
+      const address = rendererServer?.address()
+      if (!address || typeof address === 'string') {
+        reject(new Error('Failed to determine renderer server address'))
+        return
+      }
+
+      resolve(`http://localhost:${address.port}`)
+    })
+  })
+}
+
+const createWindow = async () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 400,
@@ -86,11 +177,10 @@ const createWindow = () => {
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
+    const packagedRendererUrl = await startPackagedRendererServer()
+    await mainWindow.loadURL(packagedRendererUrl)
   }
 
   // Open the DevTools.
@@ -258,13 +348,13 @@ const recordVoiceHandle = () => {
 
 app.whenReady().then(() => {
   recordVoiceHandle()
-  createWindow()
+  void createWindow()
 
   app.on("activate", () => {
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      void createWindow();
     }
   });
 })
@@ -276,6 +366,11 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
+
+app.on('before-quit', () => {
+  rendererServer?.close()
+  rendererServer = null
+})
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
