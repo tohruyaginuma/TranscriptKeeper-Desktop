@@ -154,12 +154,14 @@ function buildOsxNotarizeConfig() {
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    appBundleId: APP_BUNDLE_ID,
     appCategoryType: 'public.app-category.productivity',
+    name: 'Transcript Keeper',
+    executableName: 'Transcript Keeper',
     extraResource: buildBundledRuntimeEnvResource(),
     osxSign: buildOsxSignConfig(),
     osxNotarize: buildOsxNotarizeConfig(),
     extendInfo: {
+      CFBundleIdentifier: APP_BUNDLE_ID,
       NSMicrophoneUsageDescription:
         'Transcript Keeper needs microphone access to record your voice.',
       NSAudioCaptureUsageDescription:
