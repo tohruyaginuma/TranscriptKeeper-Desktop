@@ -46,6 +46,13 @@ const App = () => {
   const signedIn = Boolean(user);
   const displayName = user?.displayName || user?.email || "Signed in user";
   const secondaryText = user?.email || "Google account";
+  const avatarUrl = user?.photoURL || undefined;
+  const avatarFallback = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('') || 'AU'
   const visibleToken = idToken ? `${idToken.slice(0, 24)}...` : null;
   const visibleError = submissionError || authError || error;
   const noteUrl = noteId ? `${WEB_ROOT}/notes/${noteId}` : null;
@@ -232,8 +239,8 @@ const App = () => {
 							</Button>
         </> : <>
         <Avatar size="lg">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>AU</AvatarFallback>
+            <AvatarImage src={avatarUrl} alt={displayName} referrerPolicy="no-referrer" />
+            <AvatarFallback>{avatarFallback}</AvatarFallback>
           </Avatar>
           <Flex>
             <Text bold>{signedIn ? displayName : "Not signed in"}</Text>

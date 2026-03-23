@@ -20,6 +20,30 @@ if (process.platform === 'darwin') {
 initMain()
 const execFileAsync = promisify(execFile)
 
+function shouldAllowInternalPopup(url: string) {
+  if (url === 'about:blank') {
+    return true
+  }
+
+  try {
+    const parsedUrl = new URL(url)
+    const hostname = parsedUrl.hostname.toLowerCase()
+
+    if (parsedUrl.pathname.startsWith('/__/auth/')) {
+      return true
+    }
+
+    return (
+      hostname === 'accounts.google.com' ||
+      hostname === 'apis.google.com' ||
+      hostname.endsWith('.firebaseapp.com') ||
+      hostname.endsWith('.web.app')
+    )
+  } catch {
+    return false
+  }
+}
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -34,10 +58,29 @@ const createWindow = () => {
     resizable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
     },
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (shouldAllowInternalPopup(url)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 520,
+          height: 640,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+          },
+        },
+      }
+    }
+
     void shell.openExternal(url)
     return { action: 'deny' }
   })
