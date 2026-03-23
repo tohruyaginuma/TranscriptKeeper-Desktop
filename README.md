@@ -35,13 +35,30 @@ Artifacts are created under `out/make`.
 - Pushing a tag like `v1.0.1` triggers GitHub Actions to build an arm64 DMG.
 - The workflow creates or updates the GitHub Release for that tag and uploads the DMG.
 - Tags that include `-`, such as `v1.0.1-rc1`, are published as prereleases.
+- Builds are unsigned, so macOS may require manual approval on first launch.
 
-### Required GitHub Secrets
+### Required GitHub Variables
 
-- `APPLE_ID`: Apple Developer account email.
-- `APPLE_APP_SPECIFIC_PASSWORD`: app-specific password used by notarization.
-- `APPLE_TEAM_ID`: Apple Developer Team ID.
-- `APPLE_SIGNING_IDENTITY`: `Developer ID Application: ...` certificate name.
-- `APPLE_CERTIFICATE_P12_BASE64`: base64-encoded `.p12` certificate export.
-- `APPLE_CERTIFICATE_PASSWORD`: password for the `.p12` export.
-- `KEYCHAIN_PASSWORD`: temporary keychain password for the GitHub Actions runner.
+- `VITE_API_ROOT`
+- `VITE_WEB_ROOT`
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID` (optional)
+
+`.env.production` is ignored locally, so GitHub Actions needs these values configured in repository Variables.
+
+## Opening Unsigned Builds
+
+If macOS blocks the downloaded app, use one of these:
+
+- Finder でアプリを右クリックして `Open`
+- `System Settings > Privacy & Security` で `Open Anyway`
+- Terminal で quarantine を外す:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Transcript Keeper.app"
+```
