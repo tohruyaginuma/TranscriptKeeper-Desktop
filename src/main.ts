@@ -66,6 +66,20 @@ function buildApiUrl(apiRoot: string, pathname: string) {
   return `${normalizedRoot}${normalizedPath}`
 }
 
+async function requestMicrophoneAccessOnLaunch() {
+  if (process.platform !== 'darwin') {
+    return
+  }
+
+  const currentStatus = systemPreferences.getMediaAccessStatus('microphone')
+
+  if (currentStatus !== 'not-determined') {
+    return
+  }
+
+  await systemPreferences.askForMediaAccess('microphone')
+}
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -412,13 +426,17 @@ const recordVoiceHandle = () => {
 
 app.whenReady().then(() => {
   recordVoiceHandle()
-  void createWindow()
+  void createWindow().then(() => {
+    void requestMicrophoneAccessOnLaunch()
+  })
 
   app.on("activate", () => {
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow();
+      void createWindow().then(() => {
+        void requestMicrophoneAccessOnLaunch()
+      });
     }
   });
 })
