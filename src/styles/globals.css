@@ -123,3 +123,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes visualizer-wave {
+  0%,
+  100% {
+    transform: scaleY(0.16);
+  }
+  20% {
+    transform: scaleY(var(--visualizer-peak, 0.85));
+  }
+  50% {
+    transform: scaleY(calc(var(--visualizer-peak, 0.85) * 0.42));
+  }
+  75% {
+    transform: scaleY(calc(var(--visualizer-peak, 0.85) * 0.74));
+  }
+}
+
+.visualizer-bar {
+  transform-origin: center bottom;
+  animation-name: visualizer-wave;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}

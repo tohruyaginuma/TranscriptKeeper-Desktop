@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogIn, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ const App = () => {
   const [transcriptId, setTranscriptId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isSubmittingTranscript, setIsSubmittingTranscript] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
   const signedIn = Boolean(user);
   const displayName = user?.displayName || user?.email || "Signed in user";
@@ -76,7 +77,22 @@ const App = () => {
       idToken
     );
     setTranscriptId(transcript.transcript_id);
+    setElapsed(0);
   };
+
+  useEffect(() => {
+    if (!isRecording) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setElapsed((currentElapsed) => currentElapsed + 1);
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isRecording]);
 
   const handleStop = async () => {
     setSubmissionError(null);
@@ -113,11 +129,14 @@ const App = () => {
         </div>
 
         <Visualizer isRecording={isRecording} />
-        <Timer isRecording={isRecording} elapsed={0} />
+        <Timer isRecording={isRecording} elapsed={elapsed} />
         <TimerController
           isRecording={isRecording}
           disabled={!signedIn}
-          onRecord={start}
+          onRecord={() => {
+            setElapsed(0);
+            void start();
+          }}
           onStop={() => {
             void handleStop();
           }}
