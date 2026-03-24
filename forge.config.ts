@@ -117,8 +117,10 @@ function buildBundledRuntimeEnvResource() {
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    appBundleId: 'com.tohruyaginuma.transcriptkeeperdesktop',
     extraResource: buildBundledRuntimeEnvResource(),
     extendInfo: {
+      CFBundleIdentifier: 'com.tohruyaginuma.transcriptkeeperdesktop',
       NSMicrophoneUsageDescription:
         'Transcript Keeper needs microphone access to record your voice.',
       NSAudioCaptureUsageDescription:
