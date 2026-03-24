@@ -101,6 +101,15 @@ export function useAudioRecorder() {
       setSavedPath(null)
       setUploadResult(null)
       setStatus('preparing')
+
+      const hasMicrophoneAccess =
+        await window.electronAPI.ensureMicrophoneAccess()
+
+      if (!hasMicrophoneAccess) {
+        throw new Error(
+          'Microphone access is required. Enable Transcript Keeper in System Settings > Privacy & Security > Microphone, then reopen the app.'
+        )
+      }
   
       // 1) Ask permissions here, inside the button-triggered flow
       const micStream = await navigator.mediaDevices.getUserMedia({

@@ -14,6 +14,7 @@ declare global {
   interface Window {
     electronAPI: {
       runtimeConfig: AppRuntimeConfig
+      ensureMicrophoneAccess: () => Promise<boolean>
       postApiJson: (
         apiRoot: string,
         pathname: string,

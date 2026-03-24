@@ -5,6 +5,9 @@ const runtimeConfig = ipcRenderer.sendSync('runtime-config:get')
 
 contextBridge.exposeInMainWorld('electronAPI', {
   runtimeConfig,
+  ensureMicrophoneAccess: () => {
+    return ipcRenderer.invoke('permissions:ensure-microphone-access')
+  },
   postApiJson: (
     apiRoot: string,
     pathname: string,
