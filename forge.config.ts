@@ -15,6 +15,7 @@ const RUNTIME_ENV_OUTPUT_PATH = path.resolve(
   os.tmpdir(),
   'runtime-config.env'
 );
+const PROJECT_ROOT = __dirname;
 const PUBLIC_RUNTIME_ENV_KEYS = [
   'VITE_API_ROOT',
   'VITE_WEB_ROOT',
@@ -83,7 +84,7 @@ function buildBundledRuntimeEnvResource() {
   for (const fileName of envFileNames) {
     Object.assign(
       publicEnv,
-      readEnvFileIfExists(path.resolve(process.cwd(), fileName))
+      readEnvFileIfExists(path.resolve(PROJECT_ROOT, fileName))
     );
   }
 

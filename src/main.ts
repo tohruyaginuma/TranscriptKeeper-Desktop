@@ -6,6 +6,7 @@ import { initMain } from 'electron-audio-loopback'
 import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { loadRuntimeConfig } from './config/load-runtime-config'
 
 if (process.platform === 'darwin') {
   // Electron 40 on macOS 15 can return a silent desktop audio stream when the
@@ -53,6 +54,12 @@ const createWindow = () => {
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 };
+
+const registerRuntimeConfigHandle = () => {
+  ipcMain.on('runtime-config:get', (event) => {
+    event.returnValue = loadRuntimeConfig()
+  })
+}
 
 const recordVoiceHandle = () => {
   ipcMain.handle(
@@ -214,6 +221,7 @@ const recordVoiceHandle = () => {
 // Some APIs can only be used after this event occurs.
 
 app.whenReady().then(() => {
+  registerRuntimeConfigHandle()
   recordVoiceHandle()
   createWindow()
 
