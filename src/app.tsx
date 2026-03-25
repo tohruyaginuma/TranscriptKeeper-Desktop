@@ -119,6 +119,9 @@ const App = () => {
 
   return (
     <Flex gapY="md" className="h-screen">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
+      <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-1/2 h-1/2 bg-primary/10 rounded-full blur-xl" />
+      
       <Flex hasPadding gapY="md" itemsCenter justifyCenter className="flex-1">
         <div className="w-full text-center">
           <Logo
@@ -142,53 +145,11 @@ const App = () => {
           }}
         />
 
-        <div style={{ marginBottom: 16 }}>
-          <button
-            onClick={() => {
-              if (!savedPath) {
-                return;
-              }
-
-              setSubmissionError(null);
-              setNoteId(null);
-              setTranscriptId(null);
-              setIsSubmittingTranscript(true);
-
-              void submitSavedAudio(savedPath)
-                .catch((err) => {
-                  setSubmissionError(
-                    err instanceof Error ? err.message : "Failed to create transcript"
-                  );
-                })
-                .finally(() => {
-                  setIsSubmittingTranscript(false);
-                });
-            }}
-            disabled={!savedPath || !signedIn || isSubmittingTranscript}
-          >
-            Retry note + transcript upload
-          </button>
-        </div>
-
         <p><strong>Status:</strong> {status}</p>
-        <p><strong>API Root:</strong> {API_ROOT}</p>
-        {savedPath && (
-          <p>
-            <strong>Saved file:</strong> {savedPath}
-          </p>
-        )}
-        {signedIn && (
-          <>
-            <p><strong>User:</strong> {displayName}</p>
-            {visibleToken && (
-              <p><strong>ID token:</strong> {visibleToken}</p>
-            )}
-            <p><strong>Backend auth:</strong> {isBackendAuthenticated ? "synced" : "pending"}</p>
-          </>
-        )}
-        {noteId && <p><strong>Note ID:</strong> {noteId}</p>}
-        {transcriptId && <p><strong>Transcript ID:</strong> {transcriptId}</p>}
-        {isSubmittingTranscript && <p><strong>Submission:</strong> Creating note and transcript...</p>}
+
+        {noteId && <p className="text-muted-foreground"><strong>Note has been created with ID:</strong> {noteId}</p>}
+        {transcriptId && <p className="text-muted-foreground"><strong>Transcript has been created with ID:</strong> {transcriptId}</p>}
+        {isSubmittingTranscript && <p className="text-muted-foreground"><strong>Submission:</strong> Creating note and transcript...</p>}
         {transcriptId && noteUrl && (
           <Button
             variant="outline"
