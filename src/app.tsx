@@ -11,7 +11,7 @@ import Logo from "@/components/logo";
 import Visualizer from "@/components/visualizer";
 import Timer from "@/components/timer";
 import TimerController from "@/components/timer-controller";
-import { API_ROOT, WEB_ROOT } from "@/config/constants";
+import { WEB_ROOT } from "@/config/constants";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { buildTranscriptUrl, createNote } from "@/lib/api";
@@ -23,7 +23,6 @@ const App = () => {
     idToken,
     isReady,
     isAuthenticating,
-    isBackendAuthenticated,
     error: authError,
     signInWithGoogle,
     signOut,
@@ -32,7 +31,6 @@ const App = () => {
   const {
     status,
     error,
-    savedPath,
     uploadResult,
     start,
     stopAndSave,
@@ -54,7 +52,6 @@ const App = () => {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('') || 'AU'
-  const visibleToken = idToken ? `${idToken.slice(0, 24)}...` : null;
   const visibleError = submissionError || authError || error;
   const noteUrl = noteId ? `${WEB_ROOT}/notes/${noteId}` : null;
 
