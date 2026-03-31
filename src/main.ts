@@ -225,8 +225,7 @@ const registerPermissionHandlers = () => {
       return false
     }
 
-    // 'not-determined': let getUserMedia in the renderer trigger the OS dialog
-    return true
+    return systemPreferences.askForMediaAccess('microphone')
   })
 }
 
@@ -426,12 +425,6 @@ app.whenReady().then(() => {
     (_webContents, permission, callback) => {
       const allowed = ['media', 'screen'].includes(permission)
       callback(allowed)
-    }
-  )
-
-  session.defaultSession.setPermissionCheckHandler(
-    (_webContents, permission) => {
-      return ['media', 'screen'].includes(permission)
     }
   )
 
