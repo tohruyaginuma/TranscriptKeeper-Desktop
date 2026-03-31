@@ -225,7 +225,8 @@ const registerPermissionHandlers = () => {
       return false
     }
 
-    return systemPreferences.askForMediaAccess('microphone')
+    // 'not-determined': let getUserMedia in the renderer trigger the OS dialog
+    return true
   })
 }
 
