@@ -119,6 +119,10 @@ const config: ForgeConfig = {
     asar: true,
     appBundleId: 'com.tohruyaginuma.transcriptkeeperdesktop',
     extraResource: buildBundledRuntimeEnvResource(),
+    osxSign: {
+      entitlements: 'entitlements.mac.plist',
+      'entitlements-inherit': 'entitlements.mac.plist',
+    },
     extendInfo: {
       CFBundleIdentifier: 'com.tohruyaginuma.transcriptkeeperdesktop',
       NSMicrophoneUsageDescription:

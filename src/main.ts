@@ -5,6 +5,7 @@ import {
   dialog,
   shell,
   systemPreferences,
+  session,
 } from "electron";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
@@ -419,6 +420,20 @@ const recordVoiceHandle = () => {
 // Some APIs can only be used after this event occurs.
 
 app.whenReady().then(() => {
+  // Allow renderer to access microphone and screen capture via getUserMedia / getDisplayMedia
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, permission, callback) => {
+      const allowed = ['media', 'screen'].includes(permission)
+      callback(allowed)
+    }
+  )
+
+  session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission) => {
+      return ['media', 'screen'].includes(permission)
+    }
+  )
+
   registerRuntimeConfigHandle()
   registerPermissionHandlers()
   recordVoiceHandle()
